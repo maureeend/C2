@@ -1,4 +1,4 @@
-# C2
+# C2: Command and Control in Python
 Creation d'un C2 en python
 
 Fonctionnalités:
