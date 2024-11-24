@@ -4,6 +4,7 @@ from PIL import Image
 ip_add = "127.0.0.1"
 port = 3280
 
+
 # Bind and listen socket
 def listen_socket(s):
     s.bind((ip_add, port))
@@ -66,8 +67,3 @@ if __name__ == "__main__":
         accept_socket(s)
     except:
         print(f"cannot listen on port : {port}")
-
-
-
-
-   
